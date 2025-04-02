@@ -4,6 +4,7 @@ import pandas as pd
 
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 PV_API_key = os.getenv("PV_API_key")
 System_ID = os.getenv("System_ID")
@@ -75,9 +76,15 @@ def get_output(sid, start_date = 0, end_date = 0):
         response_df = pd.DataFrame([row.split(",") for row in response.text.split(";")],
                                    columns = pvoutput_df.columns
                                    )
-
+        response_df["date"] = (response_df["date"].str[:4] + '-'
+                               + response_df["date"].str[4:6] + '-'
+                               + response_df["date"].str[6:])
         pvoutput_df = pd.concat([response_df, pvoutput_df], ignore_index = True)
 
         current_date += timedelta(days = 150)
 
-    pvoutput_df.to_csv(f"{system_name} {start_date.strftime("%Y-%m-%d")} to {end_date.strftime("%Y-%m-%d")}.csv", index=False)
+    file_name = f"{system_name} {start_date.strftime("%Y-%m-%d")} to {end_date.strftime("%Y-%m-%d")}.csv"
+    pvoutput_df.to_csv("data/" + file_name, index=False)
+    print(f"Saved {file_name} in data.")
+
+    return pvoutput_df
