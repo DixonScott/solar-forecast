@@ -109,7 +109,10 @@ def api_call(latitude, longitude, start_date, end_date, timezone):
         "wind_speed_10m_max": daily_wind_speed_10m_max,
         "wind_gusts_10m_min": daily_wind_gusts_10m_min,
         "wind_speed_10m_min": daily_wind_speed_10m_min}
+
     daily_dataframe = pd.DataFrame(data = daily_data)
+    daily_dataframe["date"] = daily_dataframe["date"].dt.strftime('%Y-%m-%d')
+
     return daily_dataframe
 
 
@@ -138,4 +141,4 @@ def get_output(latitude, longitude, start_date, end_date, timezone):
     openmeteo_df.to_csv("data/" + file_name, index=False)
     print(f"Saved {file_name} in data.")
 
-    return openmeteo_df
+    return file_name

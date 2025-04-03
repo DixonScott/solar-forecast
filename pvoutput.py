@@ -87,4 +87,4 @@ def get_output(sid, start_date = 0, end_date = 0):
     pvoutput_df.to_csv("data/" + file_name, index=False)
     print(f"Saved {file_name} in data.")
 
-    return pvoutput_df
+    return file_name
