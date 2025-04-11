@@ -7,8 +7,9 @@ import pvoutput
 PVOUTPUT_ENABLED = True
 OPENMETEO_ENABLED = False
 
-system_ids = ["26965", "5116", "24768"]
-#system_ids = ["66991", "11542", "26297", "28016", "72610", "69640", "75402", "32101", "9570", "3642", "28826", "9464"]
+system_ids = [
+    4502, 5007, 6854
+]
 start_date = datetime(2025,2,2)
 end_date = datetime(2025,2,5)
 
@@ -19,7 +20,6 @@ timezone = "GMT"
 
 
 def main():
-
     if PVOUTPUT_ENABLED:
         pvoutput.save_outputs_to_csv(system_ids)
 

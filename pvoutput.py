@@ -13,48 +13,64 @@ credentials = {
 pvoutput_base_url = "https://pvoutput.org/service/r2/"
 
 
-def save_outputs_to_csv(system_ids = ()):
+def save_outputs_to_csv(system_ids = (), mode = "info_only"):
+    if mode not in ("info_only", "full"):
+        print(f"Invalid mode: {mode}.")
+        return
 
     if not system_ids:
-        print("No system IDs provided...")
+        print("No system IDs provided.")
         return
 
     system_list = [get_system_info_from_id(sid) for sid in system_ids]
     system_df = pd.DataFrame(system_list)
 
+    file_path = f"data/PV_output_for_{len(system_ids)}_systems_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv"
+    system_df.to_csv(file_path, index=False)
+
+    if mode == "info_only":
+        print("Info only mode: saved system info without output data.")
+        return
+
     master_list = [get_output_from_id(sid) for sid in system_ids]
     master_df = pd.concat(master_list, ignore_index = True)
 
-    file_path = f"data/PV_output_for_{len(system_ids)}_systems_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv"
-
-    system_df.to_csv(file_path, index = False)
     with open(file_path, "a") as f:
         f.write("\n")
     master_df.to_csv(file_path, mode = "a", index = False)
 
 
 def get_system_info_from_id(sid):
-    response = requests.get(
-        pvoutput_base_url + "getsystem.jsp",
-        params = {**credentials, "sid1": sid}
-    )
-
     columns = [
         "System ID",
         "System Name", "System Size", "Postcode/Zipcode",
         "Panels", "Panel Power (W)", "Panel Brand",
         "Inverters", "Inverter Power (W)", "Inverter Brand",
         "Orientation", "Array Tilt (°)", "Shade", "Install Date",
-        "Latitude", "Longitude",
+        "Co-ordinate Precision", "Latitude", "Longitude",
         "Status Interval"
     ]
-    system_info = [sid] + response.text.split(";")[0].split(",")[:16]
+    response = requests.get(
+        pvoutput_base_url + "getsystem.jsp",
+        params={**credentials, "sid1": sid}
+    )
+    #The text response is a list of values divided into sections by ";", of which only the
+    #first section is needed, and then into individual values by ",".
+    system_info = response.text.split(";")[0].split(",")[:16]
+
+    #Check the number of decimal places of latitude to differentiate between exact co-ordinates
+    #given by the system owner, or rough co-ordinates generated automatically.
+    if len(system_info[13].split(".")[1]) <= 2:
+        coord_precision = "Approximate"
+    else:
+        coord_precision = "Exact"
+
+    system_info = [sid] + system_info[:13] + [coord_precision] + system_info[-3:]
 
     return dict(zip(columns, system_info))
 
 
 def get_output_from_id(sid, start_date = 0, end_date = 0):
-
     if not start_date or not end_date:
         response = requests.get(
             pvoutput_base_url + "getstatistic.jsp",
