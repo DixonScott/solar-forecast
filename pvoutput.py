@@ -1,30 +1,65 @@
 from datetime import datetime, timedelta
+
 import requests
 import pandas as pd
 
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
-PV_API_key = os.getenv("PV_API_key")
-System_ID = os.getenv("System_ID")
-
+credentials = {
+    "sid": os.getenv("System_ID"),
+    "key": os.getenv("PV_API_key")
+}
 pvoutput_base_url = "https://pvoutput.org/service/r2/"
 
 
-def get_output(sid, start_date = 0, end_date = 0):
+def save_outputs_to_csv(system_ids = ()):
 
-    base_params = {
-        "sid": System_ID,
-        "key": PV_API_key,
-        "sid1": sid
-    }
+    if not system_ids:
+        print("No system IDs provided...")
+        return
 
-    response = requests.get(pvoutput_base_url + "getsystem.jsp", params = base_params)
-    system_name = response.text.split(",")[0]
+    system_list = [get_system_info_from_id(sid) for sid in system_ids]
+    system_df = pd.DataFrame(system_list)
+
+    master_list = [get_output_from_id(sid) for sid in system_ids]
+    master_df = pd.concat(master_list, ignore_index = True)
+
+    file_path = f"data/PV_output_for_{len(system_ids)}_systems_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv"
+
+    system_df.to_csv(file_path, index = False)
+    with open(file_path, "a") as f:
+        f.write("\n")
+    master_df.to_csv(file_path, mode = "a", index = False)
+
+
+def get_system_info_from_id(sid):
+    response = requests.get(
+        pvoutput_base_url + "getsystem.jsp",
+        params = {**credentials, "sid1": sid}
+    )
+
+    columns = [
+        "System ID",
+        "System Name", "System Size", "Postcode/Zipcode",
+        "Panels", "Panel Power (W)", "Panel Brand",
+        "Inverters", "Inverter Power (W)", "Inverter Brand",
+        "Orientation", "Array Tilt (°)", "Shade", "Install Date",
+        "Latitude", "Longitude",
+        "Status Interval"
+    ]
+    system_info = [sid] + response.text.split(";")[0].split(",")[:16]
+
+    return dict(zip(columns, system_info))
+
+
+def get_output_from_id(sid, start_date = 0, end_date = 0):
 
     if not start_date or not end_date:
-        response = requests.get(pvoutput_base_url + "getstatistic.jsp", params = base_params)
+        response = requests.get(
+            pvoutput_base_url + "getstatistic.jsp",
+            params ={**credentials, "sid1": sid}
+        )
         if not start_date:
             if not end_date:
                 start_date, end_date = response.text.split(",")[7:9]
@@ -37,21 +72,22 @@ def get_output(sid, start_date = 0, end_date = 0):
 
 
     # data frame to store all pvoutput data
-    pvoutput_df = pd.DataFrame(columns=["date",
-                                        "energy generated (Wh)",
-                                        "efficiency (kWh/kW)",
-                                        "energy exported (Wh)",
-                                        "energy used (Wh)",
-                                        "peak power (W)",
-                                        "peak time",
-                                        "condition",
-                                        "min temp (°C)",
-                                        "max temp (°C)",
-                                        "peak energy import (Wh)",
-                                        "off peak energy import (Wh)",
-                                        "shoulder energy import (Wh)",
-                                        "high shoulder energy import (Wh)",
-                                        "insolation (Wh)"
+    pvoutput_df = pd.DataFrame(columns=["System ID",
+                                        "Date",
+                                        "Energy Generated (Wh)",
+                                        "Efficiency (kWh/kW)",
+                                        "Energy Exported (Wh)",
+                                        "Energy Used (Wh)",
+                                        "Peak Power (W)",
+                                        "Peak Time",
+                                        "Condition",
+                                        "Min Temp (°C)",
+                                        "Max Temp (°C)",
+                                        "Peak Energy Import (Wh)",
+                                        "Off Peak Energy Import (Wh)",
+                                        "Shoulder Energy Import (Wh)",
+                                        "High Shoulder Energy Import (Wh)",
+                                        "Insolation (Wh)"
                                         ]
                                )
 
@@ -65,7 +101,8 @@ def get_output(sid, start_date = 0, end_date = 0):
         date_to = date_to.strftime("%Y%m%d")
 
         params = {
-            **base_params,
+            **credentials,
+            "sid1": sid,
             "limit": "150", # The maximum for donors: https://pvoutput.org/help/api_specification.html#id37
             "df": date_from,
             "dt": date_to,
@@ -73,18 +110,14 @@ def get_output(sid, start_date = 0, end_date = 0):
         }
 
         response = requests.get(pvoutput_base_url + "getoutput.jsp", params = params)
-        response_df = pd.DataFrame([row.split(",") for row in response.text.split(";")],
-                                   columns = pvoutput_df.columns
-                                   )
-        response_df["date"] = (response_df["date"].str[:4] + '-'
-                               + response_df["date"].str[4:6] + '-'
-                               + response_df["date"].str[6:])
-        pvoutput_df = pd.concat([response_df, pvoutput_df], ignore_index = True)
-
+        if "Bad request" != response.text[:11]:
+            response_df = pd.DataFrame([[sid] + row.split(",") for row in response.text.split(";")],
+                                       columns = pvoutput_df.columns
+                                       )
+            response_df["Date"] = (response_df["Date"].str[:4] + '-'
+                                   + response_df["Date"].str[4:6] + '-'
+                                   + response_df["Date"].str[6:])
+            pvoutput_df = pd.concat([response_df, pvoutput_df], ignore_index = True)
         current_date += timedelta(days = 150)
 
-    file_name = f"{system_name} {start_date.strftime("%Y-%m-%d")} to {end_date.strftime("%Y-%m-%d")}.csv"
-    pvoutput_df.to_csv("data/" + file_name, index=False)
-    print(f"Saved {file_name} in data.")
-
-    return file_name
+    return pvoutput_df
