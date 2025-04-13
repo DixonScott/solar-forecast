@@ -5,11 +5,9 @@ import pvoutput
 
 
 PVOUTPUT_ENABLED = True
-OPENMETEO_ENABLED = False
+OPEN_METEO_ENABLED = False
 
-system_ids = [
-    4502, 5007, 6854
-]
+system_ids = [26965, 5116, 24768, 5128, 5129, 17046]
 start_date = datetime(2025,2,2)
 end_date = datetime(2025,2,5)
 
@@ -23,7 +21,7 @@ def main():
     if PVOUTPUT_ENABLED:
         pvoutput.save_outputs_to_csv(system_ids)
 
-    if OPENMETEO_ENABLED:
+    if OPEN_METEO_ENABLED:
         openmeteo.get_output(latitude, longitude, start_date, end_date, timezone)
 
 
