@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 import pandas as pd
@@ -16,7 +16,7 @@ pvoutput_base_url = "https://pvoutput.org/service/r2/"
 OPEN_METEO_START_DATE = pd.Timestamp("2022-03-01")
 
 
-def save_outputs_to_csv(system_ids, mode = "info_only"):
+def save_outputs_to_csv(system_ids, mode = "info_only", filename = None):
     if mode not in ("info_only", "full"):
         print(f"Invalid mode: {mode}.")
         return
@@ -25,7 +25,8 @@ def save_outputs_to_csv(system_ids, mode = "info_only"):
     system_df = pd.DataFrame(system_list)
     prepare_query_for_open_meteo(system_df)
 
-    filename = f"PV_output_for_{len(system_ids)}_systems_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv"
+    if filename is None:
+        filename = f"PV_output_for_{len(system_ids)}_systems_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv"
     system_df.to_csv("data/" + filename, index=False)
 
     if mode == "info_only":
@@ -139,7 +140,7 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
     return None
 
 
-def prepare_query_for_open_meteo(system_df = None, filename = None, timezone = "UTC"):
+def prepare_query_for_open_meteo(system_df = None, filename = None, timezone_str = "UTC"):
     if system_df is None and filename is None:
         raise TypeError("At least one of system_df and filename must be provided.")
     if filename:
@@ -147,7 +148,7 @@ def prepare_query_for_open_meteo(system_df = None, filename = None, timezone = "
 
     query = system_df[system_df["Co-ordinate Precision"] == "Exact"][["Latitude", "Longitude", "Latest Output Date"]]
     query.insert(2, "Elevation", "")
-    query.insert(3, "Timezone", timezone)
+    query.insert(3, "Timezone", timezone_str)
     query.insert(4, "Earliest Output Date", OPEN_METEO_START_DATE)
     # Remove rows where pvoutput data ends before open-meteo data starts.
     query = query[query["Earliest Output Date"] <= query["Latest Output Date"]]
@@ -179,3 +180,17 @@ def append_output_data_to_file(filename, system_df = None):
         master_df.to_csv("data/" + filename, mode="a", index=False)
         return master_df
     print(f"No output data found. No changes made to {filename}.")
+
+
+def check_api_limit():
+    response = requests.get(
+        pvoutput_base_url + "getstatistic.jsp",
+        params = credentials,
+        headers = {"X-Rate-Limit": "1"}
+    )
+
+    for key, value in response.headers.items():
+        if key.startswith("X-Rate-Limit"):
+            if key == "X-Rate-Limit-Reset":
+                value = datetime.fromtimestamp(int(value), tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            print(f"{key[13:]}: {value}")
