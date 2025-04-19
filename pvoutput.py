@@ -6,11 +6,11 @@ import pandas as pd
 import os
 from dotenv import load_dotenv
 load_dotenv()
-credentials = {
+CREDENTIALS = {
     "sid": os.getenv("System_ID"),
     "key": os.getenv("PV_API_key")
 }
-pvoutput_base_url = "https://pvoutput.org/service/r2/"
+PVOUTPUT_BASE_URL = "https://pvoutput.org/service/r2/"
 # The Historical Forecast API on open-meteo.com starts at
 # 2022-03-01 for the UK Met Office.
 OPEN_METEO_START_DATE = pd.Timestamp("2022-03-01")
@@ -48,12 +48,12 @@ def get_system_info_from_id(sid):
         "Status Interval",
         "Earliest Output Date", "Latest Output Date"
     ]
-    params = {**credentials, "sid1": sid}
-    response = requests.get(pvoutput_base_url + "getsystem.jsp", params = params)
+    params = {**CREDENTIALS, "sid1": sid}
+    response = requests.get(PVOUTPUT_BASE_URL + "getsystem.jsp", params = params)
     #The text response is a list of values divided into sections by ";", of which only the
     #first section is needed, and then into individual values by ",".
     system_info = response.text.split(";")[0].split(",")[:16]
-    response = requests.get(pvoutput_base_url + "getstatistic.jsp", params = params)
+    response = requests.get(PVOUTPUT_BASE_URL + "getstatistic.jsp", params = params)
     start_date, end_date = [pd.to_datetime(date, format = "%Y%m%d") for date in response.text.split(",")[7:9]]
 
     #Check the number of decimal places of latitude to differentiate between exact co-ordinates
@@ -71,8 +71,8 @@ def get_system_info_from_id(sid):
 def get_output_from_id(sid, start_date = 0, end_date = 0):
     if not start_date or not end_date:
         response = requests.get(
-            pvoutput_base_url + "getstatistic.jsp",
-            params ={**credentials, "sid1": sid}
+            PVOUTPUT_BASE_URL + "getstatistic.jsp",
+            params ={**CREDENTIALS, "sid1": sid}
         )
         if not start_date:
             if not end_date:
@@ -118,7 +118,7 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
         date_to = date_to.strftime("%Y%m%d")
 
         params = {
-            **credentials,
+            **CREDENTIALS,
             "sid1": sid,
             "limit": "150", # The maximum for donors: https://pvoutput.org/help/api_specification.html#id37
             "df": date_from,
@@ -126,7 +126,7 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
             "insolation": "1"
         }
 
-        response = requests.get(pvoutput_base_url + "getoutput.jsp", params = params)
+        response = requests.get(PVOUTPUT_BASE_URL + "getoutput.jsp", params = params)
         if "Bad request" != response.text[:11]:
             response_df = pd.DataFrame([[sid] + row.split(",") for row in response.text.split(";")],
                                        columns = pvoutput_df_columns
@@ -140,25 +140,30 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
     return None
 
 
-def prepare_query_for_open_meteo(system_df = None, filename = None, timezone_str = "UTC"):
-    if system_df is None and filename is None:
-        raise TypeError("At least one of system_df and filename must be provided.")
-    if filename:
-        system_df = pd.read_csv("data/" + filename, parse_dates = ["Latest Output Date"])
+def prepare_query_for_open_meteo(table_of_pv_systems, timezone_str = "UTC", date_format = "%d/%m/%Y"):
+    if isinstance(table_of_pv_systems, str):
+        print(f"Assuming that {table_of_pv_systems} is the name of a file...")
+        with open("data/" + table_of_pv_systems, "r") as file:
+            split_idx = next((idx for idx, line in enumerate(file) if line.strip("\n,") == ""), 0)
+        if split_idx:
+            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Latest Output Date"], date_format = date_format, nrows = split_idx-1)
+        else:
+            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Latest Output Date"], date_format = date_format)
 
-    query = system_df[system_df["Co-ordinate Precision"] == "Exact"][["Latitude", "Longitude", "Latest Output Date"]]
+    query = table_of_pv_systems[["Latitude", "Longitude", "Latest Output Date"]]
     query.insert(2, "Elevation", "")
     query.insert(3, "Timezone", timezone_str)
     query.insert(4, "Earliest Output Date", OPEN_METEO_START_DATE)
     # Remove rows where pvoutput data ends before open-meteo data starts.
     query = query[query["Earliest Output Date"] <= query["Latest Output Date"]]
 
-    query.to_csv(f"data/Open_meteo_query_{query.iloc[0,0]}N{query.iloc[0,1]}E_and_{len(query)-1}_others.csv", index = False, header = False)
+    query.to_csv(f"data/Open_meteo_query_{query.iloc[0,0]}N{query.iloc[0,1]}E_and_{len(query)-1}_others.csv", index = False, header = True)
+    return query
 
 
-def append_output_data_to_file(filename, system_df = None):
+def append_output_data_to_file(filename, system_df = None, date_format = "%d/%m/%Y"):
     if system_df is None:
-        system_df = pd.read_csv("data/" + filename, parse_dates = ["Earliest Output Date", "Latest Output Date"])
+        system_df = pd.read_csv("data/" + filename, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format)
 
     system_ids = system_df["System ID"].tolist()
 
@@ -184,13 +189,26 @@ def append_output_data_to_file(filename, system_df = None):
 
 def check_api_limit():
     response = requests.get(
-        pvoutput_base_url + "getstatistic.jsp",
-        params = credentials,
+        PVOUTPUT_BASE_URL + "getstatistic.jsp",
+        params = CREDENTIALS,
         headers = {"X-Rate-Limit": "1"}
     )
 
     for key, value in response.headers.items():
         if key.startswith("X-Rate-Limit"):
             if key == "X-Rate-Limit-Reset":
-                value = datetime.fromtimestamp(int(value), tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+                value = datetime.fromtimestamp(int(value), tz=timezone.utc).strftime('%d-%m-%Y %H:%M:%S')
             print(f"{key[13:]}: {value}")
+
+
+def api_cost_calc(table_of_pv_systems, date_format = "%d/%m/%Y"):
+    if isinstance(table_of_pv_systems, str):
+        print(f"Assuming that {table_of_pv_systems} is the name of a file...")
+        table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Latest Output Date"], date_format=date_format)
+
+    result = table_of_pv_systems["Latest Output Date"].apply(lambda x: (x - OPEN_METEO_START_DATE).days)
+    result = (result + 1)//150+1 # +1 because date range is inclusive, //150+1 because an API call returns data for up to 150 days
+    result = result.sum()
+
+    print(f"That will cost {result} API calls.")
+    return result

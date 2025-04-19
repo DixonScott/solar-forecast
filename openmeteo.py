@@ -1,144 +1,114 @@
-from datetime import timedelta
 import time
-
 import pandas as pd
+
 import openmeteo_requests
-import requests_cache
-from retry_requests import retry
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+import requests
 
 
-def api_call(latitude, longitude, start_date, end_date, timezone):
-
-    # Set up the Open-Meteo API client with cache and retry on error
-    cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
-    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-    openmeteo = openmeteo_requests.Client(session = retry_session)
-
-    # Make sure all required weather variables are listed here
-    # The order of variables in hourly or daily is important to assign them correctly below
-    url = "https://archive-api.open-meteo.com/v1/archive"
-    params = {
-        "latitude": latitude,
-        "longitude": longitude,
-        "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d"),
-        "daily": ["weather_code",
-                  "temperature_2m_mean", "temperature_2m_max", "temperature_2m_min",
-                  "precipitation_sum", "rain_sum", "snowfall_sum", "precipitation_hours",
-                  "sunrise", "sunset", "daylight_duration", "sunshine_duration",
-                  "shortwave_radiation_sum", "cloud_cover_mean", "cloud_cover_max", "cloud_cover_min",
-                  "relative_humidity_2m_mean", "relative_humidity_2m_max", "relative_humidity_2m_min",
-                  "dew_point_2m_mean", "dew_point_2m_max", "dew_point_2m_min",
-                  "surface_pressure_mean", "surface_pressure_max", "surface_pressure_min",
-                  "wind_direction_10m_dominant", "wind_gusts_10m_mean", "wind_speed_10m_mean",
-                  "wind_gusts_10m_max", "wind_speed_10m_max", "wind_gusts_10m_min", "wind_speed_10m_min"],
-        "timezone": timezone
-    }
-    responses = openmeteo.weather_api(url, params = params)
-    response = responses[0]
-
-    # Process daily data. The order of variables needs to be the same as requested.
-    daily = response.Daily()
-    daily_weather_code = daily.Variables(0).ValuesAsNumpy()
-    daily_temperature_2m_mean = daily.Variables(1).ValuesAsNumpy()
-    daily_temperature_2m_max = daily.Variables(2).ValuesAsNumpy()
-    daily_temperature_2m_min = daily.Variables(3).ValuesAsNumpy()
-    daily_precipitation_sum = daily.Variables(4).ValuesAsNumpy()
-    daily_rain_sum = daily.Variables(5).ValuesAsNumpy()
-    daily_snowfall_sum = daily.Variables(6).ValuesAsNumpy()
-    daily_precipitation_hours = daily.Variables(7).ValuesAsNumpy()
-    daily_sunrise = daily.Variables(8).ValuesInt64AsNumpy()
-    daily_sunset = daily.Variables(9).ValuesInt64AsNumpy()
-    daily_daylight_duration = daily.Variables(10).ValuesAsNumpy()
-    daily_sunshine_duration = daily.Variables(11).ValuesAsNumpy()
-    daily_shortwave_radiation_sum = daily.Variables(12).ValuesAsNumpy()
-    daily_cloud_cover_mean = daily.Variables(13).ValuesAsNumpy()
-    daily_cloud_cover_max = daily.Variables(14).ValuesAsNumpy()
-    daily_cloud_cover_min = daily.Variables(15).ValuesAsNumpy()
-    daily_relative_humidity_2m_mean = daily.Variables(16).ValuesAsNumpy()
-    daily_relative_humidity_2m_max = daily.Variables(17).ValuesAsNumpy()
-    daily_relative_humidity_2m_min = daily.Variables(18).ValuesAsNumpy()
-    daily_dew_point_2m_mean = daily.Variables(19).ValuesAsNumpy()
-    daily_dew_point_2m_max = daily.Variables(20).ValuesAsNumpy()
-    daily_dew_point_2m_min = daily.Variables(21).ValuesAsNumpy()
-    daily_surface_pressure_mean = daily.Variables(22).ValuesAsNumpy()
-    daily_surface_pressure_max = daily.Variables(23).ValuesAsNumpy()
-    daily_surface_pressure_min = daily.Variables(24).ValuesAsNumpy()
-    daily_wind_direction_10m_dominant = daily.Variables(25).ValuesAsNumpy()
-    daily_wind_gusts_10m_mean = daily.Variables(26).ValuesAsNumpy()
-    daily_wind_speed_10m_mean = daily.Variables(27).ValuesAsNumpy()
-    daily_wind_gusts_10m_max = daily.Variables(28).ValuesAsNumpy()
-    daily_wind_speed_10m_max = daily.Variables(29).ValuesAsNumpy()
-    daily_wind_gusts_10m_min = daily.Variables(30).ValuesAsNumpy()
-    daily_wind_speed_10m_min = daily.Variables(31).ValuesAsNumpy()
-
-    daily_data = {"date": pd.date_range(
-        start=pd.to_datetime(daily.Time(), unit="s", utc=True),
-        end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
-        freq=pd.Timedelta(seconds=daily.Interval()),
-        inclusive="left"
-    ), "weather_code": daily_weather_code,
-        "temperature_2m_mean": daily_temperature_2m_mean,
-        "temperature_2m_max": daily_temperature_2m_max,
-        "temperature_2m_min": daily_temperature_2m_min,
-        "precipitation_sum": daily_precipitation_sum,
-        "rain_sum": daily_rain_sum,
-        "snowfall_sum": daily_snowfall_sum,
-        "precipitation_hours": daily_precipitation_hours,
-        "sunrise": daily_sunrise,
-        "sunset": daily_sunset,
-        "daylight_duration": daily_daylight_duration,
-        "sunshine_duration": daily_sunshine_duration,
-        "shortwave_radiation_sum": daily_shortwave_radiation_sum,
-        "cloud_cover_mean": daily_cloud_cover_mean,
-        "cloud_cover_max": daily_cloud_cover_max,
-        "cloud_cover_min": daily_cloud_cover_min,
-        "relative_humidity_2m_mean": daily_relative_humidity_2m_mean,
-        "relative_humidity_2m_max": daily_relative_humidity_2m_max,
-        "relative_humidity_2m_min": daily_relative_humidity_2m_min,
-        "dew_point_2m_mean": daily_dew_point_2m_mean,
-        "dew_point_2m_max": daily_dew_point_2m_max,
-        "dew_point_2m_min": daily_dew_point_2m_min,
-        "surface_pressure_mean": daily_surface_pressure_mean,
-        "surface_pressure_max": daily_surface_pressure_max,
-        "surface_pressure_min": daily_surface_pressure_min,
-        "wind_direction_10m_dominant": daily_wind_direction_10m_dominant,
-        "wind_gusts_10m_mean": daily_wind_gusts_10m_mean,
-        "wind_speed_10m_mean": daily_wind_speed_10m_mean,
-        "wind_gusts_10m_max": daily_wind_gusts_10m_max,
-        "wind_speed_10m_max": daily_wind_speed_10m_max,
-        "wind_gusts_10m_min": daily_wind_gusts_10m_min,
-        "wind_speed_10m_min": daily_wind_speed_10m_min}
-
-    daily_dataframe = pd.DataFrame(data = daily_data)
-    daily_dataframe["date"] = daily_dataframe["date"].dt.strftime('%Y-%m-%d')
-
-    return daily_dataframe
+OPEN_METEO_START_DATE = pd.Timestamp("2022-03-01")
+# Does not support variables sunset and sunrise currently.
+DAILY_VARS = (
+    "surface_pressure_mean", "weather_code", "sunshine_duration",
+    "daylight_duration", "precipitation_sum", "precipitation_hours",
+    "wind_direction_10m_dominant", "cloud_cover_min", "cloud_cover_mean",
+    "temperature_2m_mean", "relative_humidity_2m_min", "wind_speed_10m_mean",
+    "shortwave_radiation_sum"
+)
+MAX_API_CALLS_MINUTE = 600
+MAX_API_CALLS_HOUR = 5000
+OPEN_METEO_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 
 
-def get_output(latitude, longitude, start_date, end_date, timezone):
-
-    openmeteo_df = pd.DataFrame()
-    current_date = start_date
-    while current_date <= end_date:
-
-        date_to = current_date + timedelta(days = 364)
-        if date_to > end_date:
-            date_to = end_date
-
-        new_df = api_call(latitude, longitude, current_date, date_to, timezone)
-        openmeteo_df = pd.concat([openmeteo_df, new_df], ignore_index = True)
-
-        current_date += timedelta(days = 365)
-
-        if date_to == end_date:
-            print("All API calls complete.")
+def api_cost_calc(table_of_pv_systems, date_format = "%Y-%m-%d"):
+    if isinstance(table_of_pv_systems, str):
+        print(f"Assuming that {table_of_pv_systems} is the name of a file...")
+        with open("data/" + table_of_pv_systems, "r") as file:
+            split_idx = next((idx for idx, line in enumerate(file) if line.strip("\n,") == ""), 0)
+        if split_idx:
+            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format, nrows = split_idx-1)
         else:
-            print("API call complete, now waiting 60 seconds.")
-            time.sleep(60)
+            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format)
 
-    file_name = f"Weather at {latitude}°N {longitude}°E from {start_date.strftime("%Y-%m-%d")} to {end_date.strftime("%Y-%m-%d")}.csv"
-    openmeteo_df.to_csv("data/" + file_name, index=False)
-    print(f"Saved {file_name} in data.")
+    result = table_of_pv_systems["Latest Output Date"] - table_of_pv_systems["Earliest Output Date"]
+    result = result.apply(lambda x: x.days * len(DAILY_VARS) / 140)
+    print(f"Total API cost: {result.sum()}")
+    print(f"Min: {result.min()}, Mean: {result.mean()}, Max: {result.max()}")
+    return result
 
-    return file_name
+
+def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-%m-%d", output_file_name = "weather.csv"):
+    if isinstance(query, str):
+        print(f"Assuming that {query} is the name of a file...")
+        with open("data/" + query, "r") as file:
+            split_idx = next((idx for idx, line in enumerate(file) if line.strip("\n,") == ""), 0)
+        if split_idx:
+            query = pd.read_csv("data/" + query, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format, nrows = split_idx-1)
+        else:
+            query = pd.read_csv("data/" + query, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format)
+
+    query.loc[query["Earliest Output Date"] < OPEN_METEO_START_DATE, "Earliest Output Date"] = OPEN_METEO_START_DATE
+
+    retry_strategy = Retry(
+        total = 3,
+        backoff_factor = 1,
+        status_forcelist = [502, 503, 504],
+        allowed_methods = ["GET"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session = requests.Session()
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    open_meteo = openmeteo_requests.Client(session=session)
+
+    location_dfs = []
+    failed_locations = []
+    if "System ID" in query:
+        location_ids = (i for i in query["System ID"])
+    else:
+        location_ids = (i for i in range(len(query)))
+    first_idx = query.index[0]
+    for idx, location in query.iterrows():
+        location_id = next(location_ids)
+        if idx != first_idx:
+            print("Waiting 10s before next API call...")
+            time.sleep(10)
+
+        params = {
+            "latitude": location["Latitude"],
+            "longitude": location["Longitude"],
+            "start_date": location["Earliest Output Date"].strftime("%Y-%m-%d"),
+            "end_date": location["Latest Output Date"].strftime("%Y-%m-%d"),
+            "daily": list(daily_vars)
+        }
+        print(f"{time.strftime("%H:%M:%S", time.localtime())} - Making request for id {location_id}...")
+        try:
+            responses = open_meteo.weather_api(OPEN_METEO_URL, params = params)
+        except Exception as e:
+            print(f"{time.strftime("%H:%M:%S", time.localtime())} - Request for id {location_id} failed.")
+            print(f"An error occurred: {e}")
+            continue
+        print(f"{time.strftime("%H:%M:%S", time.localtime())} - Request {location_id} successful.")
+
+        response = responses[0]
+        daily = response.Daily()
+        daily_data = {
+            "id": location_id,
+            "date": pd.date_range(
+                start = pd.to_datetime(daily.Time(), unit = "s"),
+                end = pd.to_datetime(daily.TimeEnd(), unit = "s"),
+                freq = pd.Timedelta(seconds = daily.Interval()),
+                inclusive = "left"
+            )
+        }
+        for var_no, var_name in enumerate(daily_vars):
+            daily_data[var_name] = daily.Variables(var_no).ValuesAsNumpy()
+
+        location_dfs.append(pd.DataFrame(data = daily_data))
+
+    if location_dfs:
+        open_meteo_df = pd.concat(location_dfs, ignore_index = True)
+        open_meteo_df.to_csv("data/" + output_file_name, index = False)
+        return open_meteo_df
+    return
