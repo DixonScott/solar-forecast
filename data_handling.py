@@ -20,7 +20,7 @@ def standardize_input(input_df_or_path, date_format):
 
 
 def combine_weather_and_pvoutput(weather_df, pvoutput_df, filename):
-    if isinstance("data/" + weather_df, str):
+    if isinstance(weather_df, str):
         weather_df = pd.read_csv("data/" + weather_df, parse_dates=["date"])
     if isinstance(pvoutput_df, str):
         with open("data/" + pvoutput_df, "r") as file:

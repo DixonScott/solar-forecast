@@ -51,7 +51,6 @@ def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-
     open_meteo = openmeteo_requests.Client(session=session)
 
     location_dfs = []
-    failed_locations = []
     if "System ID" in query:
         location_ids = (i for i in query["System ID"])
     else:
