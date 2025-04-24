@@ -36,8 +36,8 @@ def save_outputs_to_csv(system_ids, mode = "info_only", filename = None):
         print("Info only mode: saved system info without output data.")
         return system_df
 
-    master_df = append_output_data_to_file(filename, system_df)
-    return master_df
+    pvoutput_df = append_output_data_to_file(filename, system_df)
+    return system_df, pvoutput_df
 
 
 def get_system_info_from_id(sid):

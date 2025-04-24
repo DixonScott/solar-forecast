@@ -14,12 +14,18 @@ def standardize_input(input_df_or_path, date_format):
             date_format=date_format,
             nrows=split_idx
         )
+    elif isinstance(input_df_or_path, tuple):
+        print(f"Input is a tuple, taking the first element...")
+        df = input_df_or_path[0]
     else:
         raise ValueError("Input must be a pandas DataFrame or a valid path to a CSV file.")
     return df
 
 
 def combine_weather_and_pvoutput(weather_df, pvoutput_df, filename):
+    if weather_df is None:
+        print("No weather data.")
+        return
     if isinstance(weather_df, str):
         weather_df = pd.read_csv("data/" + weather_df, parse_dates=["date"])
     if isinstance(pvoutput_df, str):
