@@ -2,9 +2,12 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 import pandas as pd
-
 import os
 from dotenv import load_dotenv
+
+import data_handling
+
+
 load_dotenv()
 CREDENTIALS = {
     "sid": os.getenv("System_ID"),
@@ -33,8 +36,8 @@ def save_outputs_to_csv(system_ids, mode = "info_only", filename = None):
         print("Info only mode: saved system info without output data.")
         return system_df
 
-    master_df = append_output_data_to_file(filename, system_df)
-    return master_df
+    pvoutput_df = append_output_data_to_file(filename, system_df)
+    return system_df, pvoutput_df
 
 
 def get_system_info_from_id(sid):
@@ -141,14 +144,7 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
 
 
 def prepare_query_for_open_meteo(table_of_pv_systems, timezone_str = "UTC", date_format = "%d/%m/%Y"):
-    if isinstance(table_of_pv_systems, str):
-        print(f"Assuming that {table_of_pv_systems} is the name of a file...")
-        with open("data/" + table_of_pv_systems, "r") as file:
-            split_idx = next((idx for idx, line in enumerate(file) if line.strip("\n,") == ""), 0)
-        if split_idx:
-            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Latest Output Date"], date_format = date_format, nrows = split_idx-1)
-        else:
-            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Latest Output Date"], date_format = date_format)
+    table_of_pv_systems = data_handling.standardize_input(table_of_pv_systems, date_format = date_format)
 
     query = table_of_pv_systems[["Latitude", "Longitude", "Latest Output Date"]]
     query.insert(2, "Elevation", "")
@@ -202,9 +198,7 @@ def check_api_limit():
 
 
 def api_cost_calc(table_of_pv_systems, date_format = "%d/%m/%Y"):
-    if isinstance(table_of_pv_systems, str):
-        print(f"Assuming that {table_of_pv_systems} is the name of a file...")
-        table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Latest Output Date"], date_format=date_format)
+    table_of_pv_systems = data_handling.standardize_input(table_of_pv_systems, date_format = date_format)
 
     result = table_of_pv_systems["Latest Output Date"].apply(lambda x: (x - OPEN_METEO_START_DATE).days)
     result = (result + 1)//150+1 # +1 because date range is inclusive, //150+1 because an API call returns data for up to 150 days

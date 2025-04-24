@@ -1,23 +1,19 @@
+import data_exploration
 import openmeteo
 import pvoutput
+import data_handling
 
-
-PVOUTPUT_ENABLED = False
-OPEN_METEO_ENABLED = True
 
 SYSTEM_IDS = [
-    66991
+    66991, 11542, 5242
 ]
-QUERY = "test.csv"
 
 
 def main():
-    if PVOUTPUT_ENABLED:
-        pvoutput.save_outputs_to_csv(SYSTEM_IDS, filename = "test.csv")
-
-    if OPEN_METEO_ENABLED:
-        openmeteo.get_weather_for_locations(QUERY, date_format = "%d/%m/%Y")
-
+    system_df, pvoutput_df = pvoutput.save_outputs_to_csv(SYSTEM_IDS, mode="full", filename="pvoutput.csv")
+    weather_df = openmeteo.get_weather_for_locations(system_df, output_file_name="weather.csv")
+    dataset = data_handling.combine_weather_and_pvoutput(weather_df, pvoutput_df, "dataset.csv")
+    dataset = data_exploration.clean_dataset(dataset)
 
 if __name__ == '__main__':
     main()

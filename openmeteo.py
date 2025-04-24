@@ -6,6 +6,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import requests
 
+import data_handling
+
 
 OPEN_METEO_START_DATE = pd.Timestamp("2022-03-01")
 # Does not support variables sunset and sunrise currently.
@@ -22,14 +24,7 @@ OPEN_METEO_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 
 
 def api_cost_calc(table_of_pv_systems, date_format = "%Y-%m-%d"):
-    if isinstance(table_of_pv_systems, str):
-        print(f"Assuming that {table_of_pv_systems} is the name of a file...")
-        with open("data/" + table_of_pv_systems, "r") as file:
-            split_idx = next((idx for idx, line in enumerate(file) if line.strip("\n,") == ""), 0)
-        if split_idx:
-            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format, nrows = split_idx-1)
-        else:
-            table_of_pv_systems = pd.read_csv("data/" + table_of_pv_systems, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format)
+    table_of_pv_systems = data_handling.standardize_input(table_of_pv_systems, date_format = date_format)
 
     result = table_of_pv_systems["Latest Output Date"] - table_of_pv_systems["Earliest Output Date"]
     result = result.apply(lambda x: x.days * len(DAILY_VARS) / 140)
@@ -39,14 +34,7 @@ def api_cost_calc(table_of_pv_systems, date_format = "%Y-%m-%d"):
 
 
 def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-%m-%d", output_file_name = "weather.csv"):
-    if isinstance(query, str):
-        print(f"Assuming that {query} is the name of a file...")
-        with open("data/" + query, "r") as file:
-            split_idx = next((idx for idx, line in enumerate(file) if line.strip("\n,") == ""), 0)
-        if split_idx:
-            query = pd.read_csv("data/" + query, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format, nrows = split_idx-1)
-        else:
-            query = pd.read_csv("data/" + query, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format)
+    query = data_handling.standardize_input(query, date_format = date_format)
 
     query.loc[query["Earliest Output Date"] < OPEN_METEO_START_DATE, "Earliest Output Date"] = OPEN_METEO_START_DATE
 
@@ -63,7 +51,6 @@ def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-
     open_meteo = openmeteo_requests.Client(session=session)
 
     location_dfs = []
-    failed_locations = []
     if "System ID" in query:
         location_ids = (i for i in query["System ID"])
     else:
