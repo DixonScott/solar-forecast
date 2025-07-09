@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Solar Output Predictor</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      crossorigin=""></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+  <h1>Solar Panel Output Predictor</h1>
+
+  <div id="main-container">
+    <div id="map"></div>
+
+    <div id="right-panel">
+      <p>
+        This app predicts solar panel efficiency (in kWh/kW) for the next 7 days based on your chosen location.
+        Predictions are based on the weather forecast from
+        <a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener noreferrer">Open-Meteo</a>
+        and a model trained on UK solar panel data from
+        <a href="https://pvoutput.org" target="_blank" rel="noopener noreferrer">pvoutput.org</a>.
+      </p>
+      <p>
+        Enter coordinates manually or click the map to choose a location.
+        Average efficiency prediction accuracy is 0.75kWh/kW.
+      </p>
+      <form id="location-form">
+        <input type="text" id="coords" placeholder="Enter coordinates (lat, lon) or click map" />
+        <button type="submit">Predict</button>
+        <p>Optional: enter the power rating of your solar panel system to get predictions of energy output.</p>
+        <input type="number" id="power-rating" name="power-rating" min="0" step="any">
+      </form>
+
+      <div id="result"></div>
+    </div>
+  </div>
+</body>
+</html>
