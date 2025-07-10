@@ -18,8 +18,6 @@ DAILY_VARS = (
     "temperature_2m_mean", "relative_humidity_2m_min", "wind_speed_10m_mean",
     "shortwave_radiation_sum"
 )
-MAX_API_CALLS_MINUTE = 600
-MAX_API_CALLS_HOUR = 5000
 OPEN_METEO_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 
 
@@ -33,7 +31,7 @@ def api_cost_calc(table_of_pv_systems, date_format = "%Y-%m-%d"):
     return result
 
 
-def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-%m-%d", output_file_name = "weather.csv"):
+def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-%m-%d", output_file_name = "weather.csv", save_csv = True):
     query = data_handling.standardize_input(query, date_format = date_format)
 
     query.loc[query["Earliest Output Date"] < OPEN_METEO_START_DATE, "Earliest Output Date"] = OPEN_METEO_START_DATE
@@ -96,6 +94,7 @@ def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-
 
     if location_dfs:
         open_meteo_df = pd.concat(location_dfs, ignore_index = True)
-        open_meteo_df.to_csv("data/" + output_file_name, index = False)
+        if save_csv:
+            open_meteo_df.to_csv("data/" + output_file_name, index = False)
         return open_meteo_df
     return
