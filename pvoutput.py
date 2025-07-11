@@ -19,6 +19,17 @@ PVOUTPUT_BASE_URL = "https://pvoutput.org/service/r2/"
 OPEN_METEO_START_DATE = pd.Timestamp("2022-03-01")
 
 
+def get_elevation(lat_series, lon_series):
+    coord_string = "|".join(lat_series.astype(str) + "," + lon_series.astype(str))
+
+    elevation_url = f"https://api.open-elevation.com/api/v1/lookup?locations={coord_string}"
+    response = requests.get(elevation_url)
+    data = response.json()
+
+    elevations = [item["elevation"] for item in data["results"]]
+    return pd.Series(elevations)
+
+
 def save_outputs_to_csv(system_ids, mode = "info_only", filename = None):
     if mode not in ("info_only", "full"):
         print(f"Invalid mode: {mode}.")

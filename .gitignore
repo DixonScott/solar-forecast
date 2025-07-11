@@ -1,5 +1,7 @@
-# csv files
+# data files
 *.csv
+*.pkl
+!large_hyperparam_search.csv
 
 # additional files
 .cache.sqlite
