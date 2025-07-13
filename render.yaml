@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: solar-app
+    env: python
+    rootDir: webapp
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: 10000
+    preDeploy:
+      - curl -L -o rf_100_v1.pkl https://github.com/DixonScott/Solar_Power/releases/download/v0.1.0/rf_100_v1.pkl
