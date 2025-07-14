@@ -3,9 +3,15 @@ import os
 import joblib
 import openmeteo_requests
 import pandas as pd
+import psutil
 import requests
 from flask import Flask, request, jsonify, render_template
 import urllib.request
+
+
+process = psutil.Process(os.getpid())
+def print_memory_usage():
+    print(f"Memory usage: {process.memory_info().rss / 1048576:.2f} MiB")
 
 
 elevation_url = "https://api.open-elevation.com/api/v1/lookup?locations="
@@ -27,21 +33,25 @@ weather_code_mapping = {
 
 model_path = "rf_100_v1.pkl"
 if not os.path.exists(model_path):
-    print("Model not found, downloading...")
     model_url = "https://github.com/DixonScott/Solar_Power/releases/download/v0.1.0/rf_100_v1.pkl"
+    print(f"Model not found, downloading from {model_url}")
     urllib.request.urlretrieve(model_url, model_path)
 rf = joblib.load(model_path)
+print("Model loaded.")
 
 app = Flask(__name__)
 
 
 @app.route('/')
 def index():
+    print_memory_usage()
     return render_template('index.html')
 
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    print_memory_usage()
+
     data = request.get_json()
     lat = data.get("latitude")
     lon = data.get("longitude")
@@ -110,6 +120,8 @@ def predict():
         if power_rating is not None:
             pred_dict["output"] = float(predictions[i]) * power_rating
         predictions_list.append(pred_dict)
+
+    print_memory_usage()
 
     return jsonify({
         "predictions": predictions_list,
