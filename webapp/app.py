@@ -1,4 +1,5 @@
 import os
+import time
 
 import joblib
 import openmeteo_requests
@@ -35,9 +36,15 @@ model_path = "rf_100_v1.pkl"
 if not os.path.exists(model_path):
     model_url = "https://github.com/DixonScott/Solar_Power/releases/download/v0.1.0/rf_100_v1.pkl"
     print(f"Model not found, downloading from {model_url}")
+    print_memory_usage()
+    start = time.time()
     urllib.request.urlretrieve(model_url, model_path)
+    end = time.time()
+    print(f"Download time: {(end - start):.1f}s")
+    print_memory_usage()
 rf = joblib.load(model_path)
 print("Model loaded.")
+print_memory_usage()
 
 app = Flask(__name__)
 
