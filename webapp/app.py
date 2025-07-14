@@ -1,10 +1,15 @@
+import os
+
 import joblib
 import openmeteo_requests
 import pandas as pd
 import requests
 from flask import Flask, request, jsonify, render_template
+import urllib.request
 
 
+elevation_url = "https://api.open-elevation.com/api/v1/lookup?locations="
+open_meteo_url = "https://api.open-meteo.com/v1/forecast"
 weather_code_mapping = {
     0: "Clear sky ☀️",
     1: "Mainly clear 🌤️", 2: "Partly cloudy ⛅", 3: "Overcast ☁️",
@@ -19,10 +24,15 @@ weather_code_mapping = {
     85: "Slight snow showers 🌨️", 86: "Heavy snow showers 🌨️",
     95: "Thunderstorm ⛈️", 96: "Thunderstorm with slight hail ⛈️🧊", 99: "Thunderstorm with heavy hail ⛈️🧊"
 }
+
+model_path = "rf_100_v1.pkl"
+if not os.path.exists(model_path):
+    print("Model not found, downloading...")
+    model_url = "https://github.com/DixonScott/Solar_Power/releases/download/v0.1.0/rf_100_v1.pkl"
+    urllib.request.urlretrieve(model_url, model_path)
+rf = joblib.load(model_path)
+
 app = Flask(__name__)
-rf = joblib.load('rf_100_v1.pkl')
-elevation_url = "https://api.open-elevation.com/api/v1/lookup?locations="
-open_meteo_url = "https://api.open-meteo.com/v1/forecast"
 
 
 @app.route('/')
