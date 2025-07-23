@@ -34,7 +34,7 @@ weather_code_mapping = {
 
 model_path = "rf_100_v1.pkl"
 if not os.path.exists(model_path):
-    model_url = "https://github.com/DixonScott/Solar_Power/releases/download/v0.1.0/rf_100_v1.pkl"
+    model_url = "https://github.com/DixonScott/Solar_Power/releases/download/v1.0/rf_100_v1.pkl"
     print(f"Model not found, downloading from {model_url}")
     print_memory_usage()
     start = time.time()

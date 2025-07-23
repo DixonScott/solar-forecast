@@ -1,3 +1,9 @@
+html {
+  -moz-text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
 body {
   font-family: Arial, sans-serif;
   background-color: #f9f9f9;
@@ -61,6 +67,8 @@ a:hover {
   }
   #map {
     width: 100%;
+    height: 72vh;
+    min-height: 0;
   }
   #right-panel {
     width: 100%;
@@ -86,7 +94,7 @@ a:hover {
 }
 
 #submit {
-  width: 60px;
+  width: 80px;
 }
 
 #result {
@@ -99,10 +107,9 @@ a:hover {
 
 #result table {
   width: 100%;
-  border-collapse: collapse;
   text-align: left;
 }
 
-th, td {
+th {
   vertical-align: bottom;
 }
