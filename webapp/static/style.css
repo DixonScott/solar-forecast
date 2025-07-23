@@ -3,6 +3,7 @@ body {
   background-color: #f9f9f9;
   margin: 0;
   padding: 0;
+  font-size: 1rem;
 }
 
 h1 {
@@ -11,40 +12,86 @@ h1 {
   color: #333;
 }
 
+#github-logo {
+  height: 20px;
+  vertical-align: text-bottom;
+  margin-right: 5px;
+}
+
+#github-link {
+  text-align: center;
+  margin-top: -10px;
+  margin-bottom: 0px;
+}
+
+a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
 #main-container {
   display: flex;
   justify-content: center;
   align-items: flex-start;
   gap: 20px;
   padding: 20px;
-  flex-wrap: wrap; /* allows stacking on small screens */
+  flex-direction: row;
 }
 
 #map {
-  flex: 1;
-  min-width: 400px;
+  width: 50%;
+  max-width: 620px;
   height: 80vh;
-  max-height: 100vh;
-  border: 1px solid #ccc;
+  min-height: 600px;
 }
 
 #right-panel {
-  flex: 1;
-  min-width: 600px;
+  width: 50%;
+  max-width: 640px;
+}
+
+@media (max-width: 768px) {
+  #main-container {
+    flex-direction: column-reverse;  /* puts map below right panel */
+    align-items: center;
+  }
+  #map {
+    width: 100%;
+  }
+  #right-panel {
+    width: 100%;
+  }
+}
+
+#introduction {
+  max-width: 620px;
 }
 
 #location-form {
-  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 #coords {
   width: 250px;
 }
 
+#power-rating {
+  width: 250px;
+}
+
+#submit {
+  width: 60px;
+}
+
 #result {
-  margin-top: 20px;
-  font-size: 1.2em;
-  color: #006400;
+  font-size: 1rem;
+  color: #006400; /* green text */
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -54,4 +101,8 @@ h1 {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+}
+
+th, td {
+  vertical-align: bottom;
 }
