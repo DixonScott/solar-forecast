@@ -6,10 +6,10 @@ document.addEventListener("DOMContentLoaded", function () {
   // Create the map
   const map = L.map("map").setView([54.5, -3], 5.5); // Center over UK
 
-  // Restrict to the UK (except the Shetland Islands (no data collected that far North))
+  // Restrict to the UK
   map.setMaxBounds([
-    [49.85, -8.1775],
-    [58.666667, 1.766667]
+    [49.85, -10.5],
+    [60.85, 1.766667]
   ]);
 
   // Add OpenStreetMap tiles
