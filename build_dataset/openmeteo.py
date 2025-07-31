@@ -6,7 +6,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import requests
 
-import data_handling
+from . import combine_data
 
 
 OPEN_METEO_START_DATE = pd.Timestamp("2022-03-01")
@@ -22,7 +22,7 @@ OPEN_METEO_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 
 
 def api_cost_calc(table_of_pv_systems, date_format = "%Y-%m-%d"):
-    table_of_pv_systems = data_handling.standardize_input(table_of_pv_systems, date_format = date_format)
+    table_of_pv_systems = combine_data.standardize_input(table_of_pv_systems, date_format = date_format)
 
     result = table_of_pv_systems["Latest Output Date"] - table_of_pv_systems["Earliest Output Date"]
     result = result.apply(lambda x: x.days * len(DAILY_VARS) / 140)
@@ -32,7 +32,7 @@ def api_cost_calc(table_of_pv_systems, date_format = "%Y-%m-%d"):
 
 
 def get_weather_for_locations(query, daily_vars = DAILY_VARS, date_format = "%Y-%m-%d", output_file_name = "weather.csv", save_csv = True):
-    query = data_handling.standardize_input(query, date_format = date_format)
+    query = combine_data.standardize_input(query, date_format = date_format)
 
     query.loc[query["Earliest Output Date"] < OPEN_METEO_START_DATE, "Earliest Output Date"] = OPEN_METEO_START_DATE
 

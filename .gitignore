@@ -1,7 +1,7 @@
 # data files
 *.csv
 *.pkl
-!large_hyperparam_search.csv
+!notebooks/large_hyperparam_search.csv
 
 # additional files
 .cache.sqlite

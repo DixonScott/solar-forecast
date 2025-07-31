@@ -5,7 +5,7 @@ import pandas as pd
 import os
 from dotenv import load_dotenv
 
-import data_handling
+from . import combine_data
 
 
 load_dotenv()
@@ -155,7 +155,7 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
 
 
 def prepare_query_for_open_meteo(table_of_pv_systems, timezone_str = "UTC", date_format = "%d/%m/%Y"):
-    table_of_pv_systems = data_handling.standardize_input(table_of_pv_systems, date_format = date_format)
+    table_of_pv_systems = combine_data.standardize_input(table_of_pv_systems, date_format = date_format)
 
     query = table_of_pv_systems[["Latitude", "Longitude", "Latest Output Date"]]
     query.insert(2, "Elevation", "")
@@ -209,7 +209,7 @@ def check_api_limit():
 
 
 def api_cost_calc(table_of_pv_systems, date_format = "%d/%m/%Y"):
-    table_of_pv_systems = data_handling.standardize_input(table_of_pv_systems, date_format = date_format)
+    table_of_pv_systems = combine_data.standardize_input(table_of_pv_systems, date_format = date_format)
 
     result = table_of_pv_systems["Latest Output Date"].apply(lambda x: (x - OPEN_METEO_START_DATE).days)
     result = (result + 1)//150+1 # +1 because date range is inclusive, //150+1 because an API call returns data for up to 150 days

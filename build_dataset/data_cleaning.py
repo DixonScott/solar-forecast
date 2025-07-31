@@ -1,6 +1,6 @@
 import pandas as pd
 
-# These system ids are based on my own exploration of my dataset.
+# These system ids are based on my own exploration of my dataset (see /notebooks/data_cleaning.ipynb)
 SIDS_TO_REMOVE = (3099, 8224, 4113, 32351, 46979, 3641, 6090)
 
 
