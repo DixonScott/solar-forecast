@@ -48,7 +48,7 @@ def save_outputs_to_csv(system_ids, mode="info_only", filepath=None):
         print("Info only mode: saved system info without output data.")
         return system_df
 
-    pvoutput_df = append_output_data_to_file(filepath, system_df)
+    pvoutput_df = append_output_data_to_file(final_path, system_df)
     return system_df, pvoutput_df
 
 
@@ -194,7 +194,7 @@ def append_output_data_to_file(filepath, system_df=None, date_format="%d/%m/%Y")
         with open(filepath, "a") as f:
             f.write("\n")
         final_path = utils.safe_to_csv(master_df, filepath, mode="a", index=False)
-        print(f"Saved CSV to {final_path}")
+        print(f"Appended to {final_path}")
         return master_df
     print(f"No output data found. No changes made to {filepath}.")
 

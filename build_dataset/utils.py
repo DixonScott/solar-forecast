@@ -44,7 +44,7 @@ def safe_to_csv(df: pd.DataFrame, filepath: str, overwrite=False, **kwargs):
         os.makedirs(directory)
 
     # Create a unique filename if necessary
-    if os.path.isfile(filepath) and not overwrite:
+    if os.path.isfile(filepath) and not overwrite and kwargs.get("mode", "w") != "a":
         base, ext = os.path.splitext(filepath)
         counter = 1
         new_filepath = f"{base}({counter}){ext}"
