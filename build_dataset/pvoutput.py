@@ -5,7 +5,7 @@ import pandas as pd
 import os
 from dotenv import load_dotenv
 
-from . import combine_data
+from . import utils
 
 
 load_dotenv()
@@ -30,7 +30,7 @@ def get_elevation(lat_series, lon_series):
     return pd.Series(elevations)
 
 
-def save_outputs_to_csv(system_ids, mode = "info_only", filename = None):
+def save_outputs_to_csv(system_ids, mode="info_only", filepath=None):
     if mode not in ("info_only", "full"):
         print(f"Invalid mode: {mode}.")
         return
@@ -39,15 +39,16 @@ def save_outputs_to_csv(system_ids, mode = "info_only", filename = None):
     system_df = pd.DataFrame(system_list)
     prepare_query_for_open_meteo(system_df)
 
-    if filename is None:
-        filename = f"PV_output_for_{len(system_ids)}_systems_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv"
-    system_df.to_csv("data/" + filename, index=False)
+    if filepath is None:
+        filepath = f"PV_output_for_{len(system_ids)}_systems_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.csv"
+    final_path = utils.safe_to_csv(system_df, filepath, index=False)
+    print(f"Saved CSV to {final_path}")
 
     if mode == "info_only":
         print("Info only mode: saved system info without output data.")
         return system_df
 
-    pvoutput_df = append_output_data_to_file(filename, system_df)
+    pvoutput_df = append_output_data_to_file(filepath, system_df)
     return system_df, pvoutput_df
 
 
@@ -63,12 +64,12 @@ def get_system_info_from_id(sid):
         "Earliest Output Date", "Latest Output Date"
     ]
     params = {**CREDENTIALS, "sid1": sid}
-    response = requests.get(PVOUTPUT_BASE_URL + "getsystem.jsp", params = params)
+    response = requests.get(PVOUTPUT_BASE_URL + "getsystem.jsp", params=params)
     #The text response is a list of values divided into sections by ";", of which only the
     #first section is needed, and then into individual values by ",".
     system_info = response.text.split(";")[0].split(",")[:16]
-    response = requests.get(PVOUTPUT_BASE_URL + "getstatistic.jsp", params = params)
-    start_date, end_date = [pd.to_datetime(date, format = "%Y%m%d") for date in response.text.split(",")[7:9]]
+    response = requests.get(PVOUTPUT_BASE_URL + "getstatistic.jsp", params=params)
+    start_date, end_date = [pd.to_datetime(date, format="%Y%m%d") for date in response.text.split(",")[7:9]]
 
     #Check the number of decimal places of latitude to differentiate between exact co-ordinates
     #given by the system owner, or rough co-ordinates generated automatically.
@@ -82,21 +83,21 @@ def get_system_info_from_id(sid):
     return dict(zip(columns, system_info))
 
 
-def get_output_from_id(sid, start_date = 0, end_date = 0):
+def get_output_from_id(sid, start_date=0, end_date=0):
     if not start_date or not end_date:
         response = requests.get(
             PVOUTPUT_BASE_URL + "getstatistic.jsp",
-            params ={**CREDENTIALS, "sid1": sid}
+            params={**CREDENTIALS, "sid1": sid}
         )
         if not start_date:
             if not end_date:
                 start_date, end_date = response.text.split(",")[7:9]
-                start_date = pd.to_datetime(start_date, format = "%Y%m%d")
-                end_date = pd.to_datetime(end_date, format = "%Y%m%d")
+                start_date = pd.to_datetime(start_date, format="%Y%m%d")
+                end_date = pd.to_datetime(end_date, format="%Y%m%d")
             else:
-                start_date = pd.to_datetime(response.text.split(",")[7], format = "%Y%m%d")
+                start_date = pd.to_datetime(response.text.split(",")[7], format="%Y%m%d")
         else:
-            end_date = pd.to_datetime(response.text.split(",")[8], format = "%Y%m%d")
+            end_date = pd.to_datetime(response.text.split(",")[8], format="%Y%m%d")
 
     pvoutput_df_columns = [
         "System ID",
@@ -121,12 +122,12 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
     # Set end_date to yesterday if it's today to prevent a partial day.
     if end_date.date() == datetime.now().date():
         print(f"End date for System ID {sid} is today. Subtracting one day to avoid partial output data.")
-        end_date = end_date - timedelta(days = 1)
+        end_date = end_date - timedelta(days=1)
     current_date = start_date
     while current_date <= end_date:
 
         date_from = current_date.strftime("%Y%m%d")
-        date_to = current_date + timedelta(days = 149)
+        date_to = current_date + timedelta(days=149)
         if date_to > end_date:
             date_to = end_date
         date_to = date_to.strftime("%Y%m%d")
@@ -134,28 +135,28 @@ def get_output_from_id(sid, start_date = 0, end_date = 0):
         params = {
             **CREDENTIALS,
             "sid1": sid,
-            "limit": "150", # The maximum for donors: https://pvoutput.org/help/api_specification.html#id37
+            "limit": "150",  # The maximum for donors: https://pvoutput.org/help/api_specification.html#id37
             "df": date_from,
             "dt": date_to,
             "insolation": "1"
         }
 
-        response = requests.get(PVOUTPUT_BASE_URL + "getoutput.jsp", params = params)
+        response = requests.get(PVOUTPUT_BASE_URL + "getoutput.jsp", params=params)
         if "Bad request" != response.text[:11]:
             response_df = pd.DataFrame([[sid] + row.split(",") for row in response.text.split(";")],
-                                       columns = pvoutput_df_columns
+                                       columns=pvoutput_df_columns
                                        )
             response_df["Date"] = pd.to_datetime(response_df["Date"])
             pvoutput_dfs = [response_df] + pvoutput_dfs
-        current_date += timedelta(days = 150)
+        current_date += timedelta(days=150)
 
     if pvoutput_dfs:
-        return pd.concat(pvoutput_dfs, ignore_index = True)
+        return pd.concat(pvoutput_dfs, ignore_index=True)
     return None
 
 
-def prepare_query_for_open_meteo(table_of_pv_systems, timezone_str = "UTC", date_format = "%d/%m/%Y"):
-    table_of_pv_systems = combine_data.standardize_input(table_of_pv_systems, date_format = date_format)
+def prepare_query_for_open_meteo(table_of_pv_systems, timezone_str="UTC", date_format="%d/%m/%Y", filepath=None):
+    table_of_pv_systems = utils.standardize_input(table_of_pv_systems, date_format=date_format)
 
     query = table_of_pv_systems[["Latitude", "Longitude", "Latest Output Date"]]
     query.insert(2, "Elevation", "")
@@ -164,13 +165,16 @@ def prepare_query_for_open_meteo(table_of_pv_systems, timezone_str = "UTC", date
     # Remove rows where pvoutput data ends before open-meteo data starts.
     query = query[query["Earliest Output Date"] <= query["Latest Output Date"]]
 
-    query.to_csv(f"data/Open_meteo_query_{query.iloc[0,0]}N{query.iloc[0,1]}E_and_{len(query)-1}_others.csv", index = False, header = True)
+    if filepath is None:
+        filepath = f"Open_meteo_query_{query.iloc[0, 0]}N{query.iloc[0, 1]}E_and_{len(query) - 1}_others.csv"
+    final_path = utils.safe_to_csv(query, filepath, index=False)
+    print(f"Saved CSV to {final_path}")
     return query
 
 
-def append_output_data_to_file(filename, system_df = None, date_format = "%d/%m/%Y"):
+def append_output_data_to_file(filepath, system_df=None, date_format="%d/%m/%Y"):
     if system_df is None:
-        system_df = pd.read_csv("data/" + filename, parse_dates = ["Earliest Output Date", "Latest Output Date"], date_format = date_format)
+        system_df = pd.read_csv(filepath, parse_dates=["Earliest Output Date", "Latest Output Date"], date_format=date_format)
 
     system_ids = system_df["System ID"].tolist()
 
@@ -187,18 +191,19 @@ def append_output_data_to_file(filename, system_df = None, date_format = "%d/%m/
     if master_list:
         master_df = pd.concat(master_list, ignore_index=True)
 
-        with open("data/" + filename, "a") as f:
+        with open(filepath, "a") as f:
             f.write("\n")
-        master_df.to_csv("data/" + filename, mode="a", index=False)
+        final_path = utils.safe_to_csv(master_df, filepath, mode="a", index=False)
+        print(f"Saved CSV to {final_path}")
         return master_df
-    print(f"No output data found. No changes made to {filename}.")
+    print(f"No output data found. No changes made to {filepath}.")
 
 
 def check_api_limit():
     response = requests.get(
         PVOUTPUT_BASE_URL + "getstatistic.jsp",
-        params = CREDENTIALS,
-        headers = {"X-Rate-Limit": "1"}
+        params=CREDENTIALS,
+        headers={"X-Rate-Limit": "1"}
     )
 
     for key, value in response.headers.items():
@@ -208,11 +213,11 @@ def check_api_limit():
             print(f"{key[13:]}: {value}")
 
 
-def api_cost_calc(table_of_pv_systems, date_format = "%d/%m/%Y"):
-    table_of_pv_systems = combine_data.standardize_input(table_of_pv_systems, date_format = date_format)
+def api_cost_calc(table_of_pv_systems, date_format="%d/%m/%Y"):
+    table_of_pv_systems = utils.standardize_input(table_of_pv_systems, date_format=date_format)
 
     result = table_of_pv_systems["Latest Output Date"].apply(lambda x: (x - OPEN_METEO_START_DATE).days)
-    result = (result + 1)//150+1 # +1 because date range is inclusive, //150+1 because an API call returns data for up to 150 days
+    result = -(-(result + 1) // 150)  # + 1 because date range is inclusive, // 150 because an API call returns data for up to 150 days
     result = result.sum()
 
     print(f"That will cost {result} API calls.")
